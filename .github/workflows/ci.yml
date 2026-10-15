@@ -1,0 +1,72 @@
+name: Checks and delivery
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Request a production deployment after all checks pass
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types, tests, source builds and Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the package manager pinned in package.json
+        run: corepack enable
+      - name: Install the repository Rust toolchain
+        working-directory: code/backend
+        run: rustup show && rustup component add clippy rustfmt
+      - name: Install Rust native build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config
+      - name: Install locked Node dependencies including build tools
+        run: |
+          pnpm --dir code/frontend install --frozen-lockfile --prod=false
+          pnpm --dir code/auth install --frozen-lockfile --prod=false
+      - name: Generate isolated disposable CI environments
+        shell: bash
+        run: |
+          source .env.example
+          python3 scripts/init-env.py development
+          python3 scripts/init-env.py production --site-url "$CI_SITE_URL" --frontend-host-port "$CI_FRONTEND_HOST_PORT"
+      - name: Run every quality gate and production source build
+        run: python3 scripts/check.py --environment production --build
+
+  deliver:
+    name: Request Coolify deployment
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    concurrency:
+      group: production-delivery
+      cancel-in-progress: false
+    steps:
+      - name: Call the configured production deployment webhook
+        env:
+          COOLIFY_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+        run: |
+          test -n "$COOLIFY_DEPLOY_WEBHOOK" || { echo 'Missing production deployment webhook'; exit 1; }
+          test -n "$COOLIFY_API_TOKEN" || { echo 'Missing production deployment token'; exit 1; }
+          curl --fail --silent --show-error --output /dev/null \
+            --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 60 \
+            --header "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            "$COOLIFY_DEPLOY_WEBHOOK"
