@@ -1,0 +1,21 @@
+# Keep the workspace, lockfile, toolchain and every migration for cargo-chef.
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!src/
+!src/**
+!migration/
+!migration/**
+!docker/
+!docker/Dockerfile.dev
+!docker/Dockerfile.prod
+**/.env*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.log
+**/*.bak
+**/*.rs.bk
+**/target/

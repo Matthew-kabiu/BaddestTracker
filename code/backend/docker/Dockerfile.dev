@@ -1,0 +1,12 @@
+# Dev image: source is bind-mounted; cargo-watch rebuilds and restarts on save.
+FROM rust:1.99.0-slim-bookworm
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+ && cargo binstall -y cargo-watch
+
+# Listen port comes from BACKEND_PORT at runtime; compose publishes it.
+# --poll: bind-mount file events are unreliable under Docker Desktop.
+CMD ["cargo", "watch", "--poll", "-x", "run --bin baddest-backend"]
