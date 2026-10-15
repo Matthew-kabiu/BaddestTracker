@@ -1,0 +1,97 @@
+# Local development: Postgres + Better Auth (tsx watch) + Rust backend (cargo-watch) + Vite frontend (HMR).
+# Usage: docker compose -f docker-compose.dev.yml --env-file .env.development up --build
+# Use sh scripts/compose.sh development up --build (selects .env.development).
+# Explicit allowlists keep database and encryption secrets out of the frontend.
+name: baddest-tracker-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    command: ["postgres", "-p", "${POSTGRES_PORT:?set in .env.development}"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env.development}
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env.development}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.development}
+      POSTGRES_PORT: ${POSTGRES_PORT:?set in .env.development}
+    ports:
+      - "${HOST_BIND_ADDRESS:?set in .env.development}:${POSTGRES_HOST_PORT:?set in .env.development}:${POSTGRES_PORT:?set in .env.development}"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -p $${POSTGRES_PORT}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    build:
+      context: ./code/auth
+      dockerfile: docker/Dockerfile.dev
+    environment:
+      APP_ENV: ${APP_ENV:?set in .env.development}
+      AUTH_PORT: ${AUTH_PORT:?set in .env.development}
+      DATABASE_URL: ${DATABASE_URL:?set in .env.development}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set in .env.development}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set in .env.development}
+      CORS_ORIGINS: ${CORS_ORIGINS:?set in .env.development}
+    ports:
+      - "${HOST_BIND_ADDRESS:?set in .env.development}:${AUTH_HOST_PORT:?set in .env.development}:${AUTH_PORT:?set in .env.development}"
+    volumes:
+      - ./code/auth:/app
+      - auth_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./code/backend
+      dockerfile: docker/Dockerfile.dev
+    environment:
+      APP_ENV: ${APP_ENV:?set in .env.development}
+      LOG_LEVEL: ${LOG_LEVEL:?set in .env.development}
+      CORS_ORIGINS: ${CORS_ORIGINS:?set in .env.development}
+      BACKEND_PORT: ${BACKEND_PORT:?set in .env.development}
+      DATABASE_URL: ${DATABASE_URL:?set in .env.development}
+      DB_MAX_CONNS: ${DB_MAX_CONNS:?set in .env.development}
+      AUTH_INTERNAL_URL: ${AUTH_INTERNAL_URL:?set in .env.development}
+      AI_KEYS_ENCRYPTION_KEY: ${AI_KEYS_ENCRYPTION_KEY:?set in .env.development}
+    ports:
+      - "${HOST_BIND_ADDRESS:?set in .env.development}:${BACKEND_HOST_PORT:?set in .env.development}:${BACKEND_PORT:?set in .env.development}"
+    volumes:
+      - ./code/backend:/app
+      - backend_target:/app/target              # build artifacts stay out of the bind mount
+      - cargo_registry:/usr/local/cargo/registry
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./code/frontend
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "${HOST_BIND_ADDRESS:?set in .env.development}:${FRONTEND_HOST_PORT:?set in .env.development}:${FRONTEND_PORT:?set in .env.development}"
+    volumes:
+      - ./code/frontend:/app
+      - frontend_node_modules:/app/node_modules  # container's own deps, not the host's
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      FRONTEND_PORT: ${FRONTEND_PORT:?set in .env.development}
+      FRONTEND_HOST_PORT: ${FRONTEND_HOST_PORT:?set in .env.development}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set in .env.development}
+      VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL:?set in .env.development}
+      VITE_APP_NAME: ${VITE_APP_NAME:?set in .env.development}
+      VITE_ENVIRONMENT: ${VITE_ENVIRONMENT:?set in .env.development}
+      VITE_SITE_URL: ${VITE_SITE_URL:?set in .env.development}
+    depends_on:
+      - backend
+
+volumes:
+  postgres_dev_data:
+  backend_target:
+  cargo_registry:
+  frontend_node_modules:
+  auth_node_modules:
