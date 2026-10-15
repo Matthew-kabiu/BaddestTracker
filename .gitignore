@@ -1,0 +1,109 @@
+# >>> stride (auto-managed, do not edit) >>>
+.claude/commands/linear/
+.claude/hooks/check_commit_widths.py
+.claude/hooks/do_commit.sh
+.claude/hooks/pretooluse/block_bare_git_commit.sh
+.claude/hooks/userpromptsubmit/inject_design_principles.sh
+.claude/skills/clear-speak/
+.claude/skills/commit/
+.claude/skills/craft/
+.claude/skills/vision/
+.claude/stride/docs/concepts/
+.claude/stride/docs/patterns/git/
+.claude/stride/docs/principles/
+.claude/tools/
+# <<< stride <<<
+
+# One ignore file for the whole repo. Lockfiles (Cargo.lock, pnpm-lock.yaml) are
+# deliberately NOT ignored: they make builds reproducible.
+
+# ── Local-only project docs (copied from Obsidian templates) ──
+SOP.md
+Changelog.md
+Agenthandoff.md
+STACK.md
+
+# ── Secrets / environment ──
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Claude Code local settings (per-machine) ──
+.claude/settings.local.json
+
+# ── Rust ──
+target/
+**/*.rs.bk
+*.pdb
+
+# ── Node / frontend ──
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+coverage/
+*.local
+
+# ── Logs ──
+logs/
+*.log
+
+# ── Backups / dumps ──
+*.bak
+*.dump
+backups/
+
+# ── Editors / OS ──
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.sw?
+.DS_Store
+Thumbs.db
+.gstack/
+
+# Local agent state and generated tooling output
+.claude/
+.opencode/
+.gbrain-source
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.pnpm-store/
+.npm/
+.cache/
+.turbo/
+playwright-report/
+test-results/
+artifacts/
+*.orig
+*.rej
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+*.p12
+*.pfx
+*.crt
+.ssh/
+.secrets/
+secrets/
+data/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+# The only publishable environment file contains fake/sample values.
+!.env.example
