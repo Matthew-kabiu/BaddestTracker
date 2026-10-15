@@ -14,9 +14,11 @@ RUN cargo chef cook --locked --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --locked --release --bin baddest-backend
 
-# distroless/cc: glibc + libgcc only. No shell, no package manager, runs as non-root.
-FROM gcr.io/distroless/cc-debian12:nonroot
+# Match the builder's Debian/glibc release without relying on access to gcr.io.
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgcc-s1 \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/baddest-backend /app
-USER nonroot:nonroot
+USER 65532:65532
 # Listen port comes from BACKEND_PORT at runtime; compose publishes it.
 ENTRYPOINT ["/app"]

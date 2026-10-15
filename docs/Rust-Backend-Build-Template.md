@@ -1057,18 +1057,24 @@ COPY . .
 RUN cargo build --release --bin api
 
 # ────────────────────────────────────────
-FROM gcr.io/distroless/cc-debian12:nonroot
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgcc-s1 \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/api /app
-USER nonroot:nonroot
+USER 65532:65532
 # Listen port comes from the environment; EXPOSE is not needed.
 ENTRYPOINT ["/app"]
 ```
 
-`distroless/cc` (not `static`) because the Rust std links against glibc by default.
-Result: one binary on an image with no shell or package manager, typically 10-30 MB.
+The runtime matches the builder's Debian/glibc release because Rust std links
+against glibc by default. Baddest Tracker uses Docker Hub's Debian slim runtime:
+the deployment server cannot resolve the distroless manifest from gcr.io (403).
+Install CA certificates for outbound HTTPS and libgcc for the compiled binary;
+run as an unprivileged numeric UID/GID. Debian slim includes a shell/package
+manager, so it is larger than distroless, but requires no Rust build tools.
 Use `rustls` features on `reqwest`/`sea-orm` so OpenSSL is never needed.
 
-**Healthcheck note:** distroless has no shell or `wget`. Build a `--health` flag into
+**Healthcheck note:** keep probes independent of shell tools. Build a `--health` flag into
 the binary (it performs `GET /api/health` and exits 0/1), or define the healthcheck at
 the compose/Coolify level.
 
@@ -1192,7 +1198,7 @@ runtime.
 - [ ] Response envelope helpers
 - [ ] Graceful shutdown
 - [ ] `/api/health` reporting DB status
-- [ ] `Dockerfile.dev` (cargo-watch) and `Dockerfile.prod` (cargo-chef, distroless, non-root)
+- [ ] `Dockerfile.dev` (cargo-watch) and `Dockerfile.prod` (cargo-chef, Debian slim, non-root)
 - [ ] Compose with healthchecks, `service_healthy`, resource limits
 - [ ] `.env.example` complete
 - [ ] Makefile/justfile: `run`, `test`, `lint`, `migrate`, `entities`, `build`
