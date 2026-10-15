@@ -35,10 +35,12 @@ jobs:
         run: rustup show && rustup component add clippy rustfmt
       - name: Install Rust native build prerequisites
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config
-      - name: Install locked Node dependencies including build tools
-        run: |
-          pnpm --dir code/frontend install --frozen-lockfile --prod=false
-          pnpm --dir code/auth install --frozen-lockfile --prod=false
+      - name: Install frontend dependencies
+        working-directory: code/frontend
+        run: pnpm install --frozen-lockfile --prod=false
+      - name: Install auth dependencies
+        working-directory: code/auth
+        run: pnpm install --frozen-lockfile --prod=false
       - name: Generate isolated disposable CI environments
         shell: bash
         run: |
