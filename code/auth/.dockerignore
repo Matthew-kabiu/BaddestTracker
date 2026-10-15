@@ -1,0 +1,21 @@
+# Deny by default. Both Dockerfiles need exactly these inputs.
+*
+!package.json
+!pnpm-lock.yaml
+!tsconfig.json
+!src/
+!src/**
+!docker/
+!docker/Dockerfile.dev
+!docker/Dockerfile.prod
+# Never admit credentials or generated files even under an allowed directory.
+**/.env*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.log
+**/*.bak
+**/*.tmp
+**/node_modules/
+**/dist/

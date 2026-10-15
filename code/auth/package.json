@@ -1,0 +1,27 @@
+{
+  "name": "baddest-auth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "auth migrate --config src/auth.ts -y && tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "migrate": "auth migrate --config src/auth.ts -y",
+    "start": "auth migrate --config dist/auth.js -y && node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.4",
+    "auth": "^1.7.7",
+    "better-auth": "^1.7.7",
+    "hono": "^4.13.13",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "pnpm@10.15.0"
+}
