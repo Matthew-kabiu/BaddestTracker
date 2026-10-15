@@ -1,0 +1,4 @@
+#!/bin/sh
+# Sourced by nginx's entrypoint before envsubst. Hash follows the built JSON-LD.
+export SEO_CSP_HASH="$(cat /usr/share/nginx/html/seo-csp-hash.txt)"
+test -n "$SEO_CSP_HASH" || exit 1

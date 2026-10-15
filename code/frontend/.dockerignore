@@ -1,0 +1,24 @@
+# Keep every build input, including fonts/images, Vite config and nginx templates.
+*
+!package.json
+!pnpm-lock.yaml
+!tsconfig*.json
+!vite.config.ts
+!index.html
+!src/
+!src/**
+!public/
+!public/**
+!docker/
+!docker/**
+**/.env*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.log
+**/*.bak
+**/*.tmp
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo

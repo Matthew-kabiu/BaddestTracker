@@ -1,0 +1,62 @@
+# Only the public landing page is indexable. Auth, dashboard and unknown SPA
+# URLs receive noindex before JavaScript runs; static assets remain crawlable.
+map $request_uri $seo_robots {
+    default "noindex, nofollow, noarchive";
+    / "index, follow, max-image-preview:large";
+    ~^/\? "index, follow, max-image-preview:large";
+    ~^/(assets/|favicon\.svg$|social-preview\.png$|robots\.txt$|sitemap\.xml$|theme-init\.js$|seo-init\.js$) "";
+}
+
+server {
+    listen ${FRONTEND_PORT};
+    server_name _;
+    server_tokens off;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    include /etc/nginx/conf.d/security-headers.inc;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    location = /health {
+        access_log off;
+        default_type text/plain;
+        return 200 "OK";
+    }
+
+    # Preserve the full URI: both services already mount their /api routes.
+    location /api/auth/ {
+        proxy_pass http://auth:${AUTH_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Connection "";
+        # SSE keep-alives keep this connection active. Never buffer live events.
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        include /etc/nginx/conf.d/security-headers.inc;
+        try_files $uri =404;
+    }
+
+    location ~ /\. { deny all; }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

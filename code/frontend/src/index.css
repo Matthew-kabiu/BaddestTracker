@@ -1,0 +1,140 @@
+/* The only CSS file in the project — Tailwind import + design tokens. See docs/DESIGN.md. */
+@import "tailwindcss";
+
+/* `static`: emit every variable, because the kit (BkLit) reads some of them from JavaScript,
+   where Tailwind cannot see that they are used. */
+@theme static {
+  /* Base spacing unit: every p-*, m-*, gap-*, w-<n>, h-<n> is a multiple of this.
+     Each scale value is max(width-driven, height floor) so narrow phones stay readable. */
+  --spacing: max(calc(0.18vw + 0.12vh), 0.42vh);
+
+  /* Type */
+  /* Outfit is self-hosted via @fontsource-variable/outfit (imported in main.tsx; CSP-safe). */
+  --font-sans: "Outfit Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-xs: max(calc(0.55vw + 0.45vh), 1.35vh);
+  --text-sm: max(calc(0.65vw + 0.5vh), 1.55vh);
+  --text-base: max(calc(0.75vw + 0.6vh), 1.8vh);
+  --text-lg: max(calc(0.9vw + 0.7vh), 2.05vh);
+  --text-xl: max(calc(1.1vw + 0.85vh), 2.35vh);
+  --text-2xl: max(calc(1.4vw + 1vh), 2.8vh);
+  --text-3xl: max(calc(1.8vw + 1.3vh), 3.3vh);
+  --text-4xl: max(calc(2.3vw + 1.6vh), 3.9vh);
+
+  /* Corner radii — Tailwind's defaults are rem, so they are redefined as viewport-relative. */
+  --radius-sm: calc(0.15vw + 0.1vh);
+  --radius-md: calc(0.25vw + 0.18vh);
+  --radius-lg: calc(0.4vw + 0.28vh);
+  --radius-xl: calc(0.6vw + 0.4vh);
+  --radius-2xl: calc(0.9vw + 0.6vh);
+  --radius-3xl: max(calc(1.2vw + 0.8vh), 2vh);
+
+  /* Shadows — Tailwind's defaults are px, so they are redefined in viewport units. */
+  --shadow-xs: 0 0.1vh 0.2vh rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 0.15vh 0.5vh rgb(0 0 0 / 0.08), 0 0.1vh 0.2vh rgb(0 0 0 / 0.04);
+  --shadow-md: 0 0.6vh 1.6vh rgb(0 0 0 / 0.1), 0 0.2vh 0.5vh rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 1.4vh 3.6vh rgb(0 0 0 / 0.14), 0 0.4vh 1vh rgb(0 0 0 / 0.08);
+
+  /* Blur — Tailwind's defaults are px. */
+  --blur-sm: 0.6vw;
+  --blur-3xl: 6vw;
+
+  /* ── Semantic colours ─────────────────────────────────────────────
+     light-dark(<light>, <dark>) resolves from `color-scheme`, which the theme provider sets
+     on <html> with Tailwind's scheme-light / scheme-dark / scheme-light-dark classes.
+     Components use ONLY these names — never raw palette colours — so one class re-themes all. */
+  /* Neutrals: cool zinc, never pure white or pure black. */
+  --color-canvas: light-dark(#f4f5f5, #0b0c0c);          /* page background */
+  --color-surface: light-dark(#fcfcfc, #121414);         /* cards, sidebar, inputs */
+  --color-raised: light-dark(#fefefe, #181a1a);          /* popovers, dialogs */
+  --color-muted: light-dark(#eef0f0, #1b1e1e);           /* hover / subtle fills */
+  --color-muted-strong: light-dark(#e3e6e6, #252929);    /* pressed fills */
+  --color-line: light-dark(#e1e4e4, #222626);            /* borders */
+  --color-line-strong: light-dark(#cdd2d2, #333838);     /* input borders */
+  --color-fg: light-dark(#0f1212, #eef1f0);              /* primary text */
+  --color-fg-muted: light-dark(#4e5757, #a3acaa);        /* secondary text (AA on surface) */
+  --color-fg-subtle: light-dark(#6b7473, #7f8987);       /* hints, placeholders */
+
+  /* One accent: emerald. Dark mode uses a lighter emerald with dark text for AA contrast. */
+  --color-primary: light-dark(#047857, #34d399);
+  --color-primary-hover: light-dark(#065f46, #6ee7b7);
+  --color-primary-fg: light-dark(#f6fffb, #04231a);
+  --color-primary-soft: light-dark(#e7f6f0, #0f2a22);    /* active nav, selected rows */
+  --color-primary-ink: light-dark(#047857, #6ee7b7);     /* accent text / icons */
+
+  --color-danger: light-dark(#c81e1e, #f87171);
+  --color-danger-hover: light-dark(#a31616, #fca5a5);
+  --color-danger-fg: light-dark(#fff8f8, #2a0808);
+  --color-danger-soft: light-dark(#fdeeee, #2a1414);
+  --color-danger-ink: light-dark(#b91c1c, #fca5a5);
+  --color-success-ink: light-dark(#047857, #6ee7b7);
+
+  --color-ring: light-dark(#059669, #34d399);
+  --color-overlay: light-dark(rgb(15 18 18 / 0.35), rgb(0 0 0 / 0.6));
+
+  /* ── Kit aliases (shadcn / Kokonut / BkLit) ───────────────────────
+     The kit's components use shadcn's token names. Point them at ours so installed
+     components follow our palette and themes without editing them. */
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-raised);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary-foreground: var(--color-primary-fg);
+  --color-secondary: var(--color-muted);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted-foreground: var(--color-fg-muted);
+  --color-accent: var(--color-muted);
+  --color-accent-foreground: var(--color-fg);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --foreground: var(--color-fg);
+  --radius: var(--radius-lg);
+
+  /* ── Charts (BkLit) ── emerald ramp, our neutrals for grid, labels and tooltips. */
+  --chart-1: light-dark(#047857, #34d399);
+  --chart-2: light-dark(#10b981, #6ee7b7);
+  --chart-3: light-dark(#6ee7b7, #059669);
+  --chart-4: light-dark(#a7f3d0, #065f46);
+  --chart-5: light-dark(#d1fae5, #064e3b);
+  --chart-background: var(--color-surface);
+  --chart-foreground: var(--color-fg);
+  --chart-foreground-muted: var(--color-fg-muted);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--color-fg-subtle);
+  --chart-crosshair: var(--color-fg-subtle);
+  --chart-grid: var(--color-line);
+  --chart-brush-border: var(--color-line);
+  --chart-label: var(--color-fg-muted);
+  --chart-indicator-color: var(--chart-1);
+  --chart-indicator-secondary-color: var(--color-fg-subtle);
+  --chart-segment-line: var(--color-line-strong);
+  --chart-segment-background: var(--color-muted);
+  --chart-marker-background: var(--color-muted);
+  --chart-marker-border: var(--color-line-strong);
+  --chart-marker-foreground: var(--color-fg);
+  --chart-marker-badge-background: var(--color-primary);
+  --chart-marker-badge-foreground: var(--color-primary-fg);
+  --chart-tooltip-background: light-dark(rgb(15 18 18 / 0.92), rgb(238 241 240 / 0.95));
+  --chart-tooltip-foreground: light-dark(#eef1f0, #0f1212);
+  --chart-tooltip-muted: light-dark(#a3acaa, #4e5757);
+  --color-chart-label: var(--chart-label);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+
+  /* Layout tokens */
+  --sidebar-collapsed: max(4.5vw, 6.5vh);
+  --sidebar-expanded: min(80vw, max(17vw, 28vh));
+}
+
+/* Kit requirement (shadcn adds the same on init): Tailwind v4 draws a bare `border` in
+   currentColor, and the kit's components rely on borders defaulting to the border token. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+}
