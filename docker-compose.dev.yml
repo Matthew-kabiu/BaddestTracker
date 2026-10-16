@@ -81,11 +81,10 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       FRONTEND_PORT: ${FRONTEND_PORT:?set in .env.development}
       FRONTEND_HOST_PORT: ${FRONTEND_HOST_PORT:?set in .env.development}
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set in .env.development}
-      VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL:?set in .env.development}
-      VITE_APP_NAME: ${VITE_APP_NAME:?set in .env.development}
-      VITE_ENVIRONMENT: ${VITE_ENVIRONMENT:?set in .env.development}
-      VITE_SITE_URL: ${VITE_SITE_URL:?set in .env.development}
+      # Vite proxies /api/auth and /api to these services, so the browser sees one origin.
+      BACKEND_PORT: ${BACKEND_PORT:?set in .env.development}
+      AUTH_PORT: ${AUTH_PORT:?set in .env.development}
+      SITE_URL: ${SITE_URL:?set in .env.development}
     depends_on:
       - backend
 

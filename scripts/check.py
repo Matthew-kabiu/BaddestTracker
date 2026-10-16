@@ -19,7 +19,7 @@ def main():
     values = validate(read_env(ROOT / f'.env.{args.environment}'), args.environment)
     public = os.environ.copy()
     # Private credentials are never passed to frontend compilation or tests.
-    public.update({key: value for key, value in values.items() if key.startswith('VITE_') or key in ('FRONTEND_PORT', 'FRONTEND_HOST_PORT')})
+    public.update({key: value for key, value in values.items() if key in ('SITE_URL', 'FRONTEND_PORT', 'FRONTEND_HOST_PORT', 'BACKEND_PORT', 'AUTH_PORT')})
     frontend = ROOT / 'code/frontend'
     auth = ROOT / 'code/auth'
     backend = ROOT / 'code/backend'
@@ -39,7 +39,7 @@ def main():
         run(['cargo', 'build', '--locked', '--release', '--workspace'], backend)
         run(['pnpm', 'build'], auth)
         run(['pnpm', 'build'], frontend, public)
-        run(['python3', 'scripts/verify-site-build.py', args.environment])
+        run(['python3', 'scripts/verify-site-build.py'])
 
 
 if __name__ == '__main__':

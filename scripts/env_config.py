@@ -27,8 +27,8 @@ def validate(values, environment):
     for key in sorted(required):
         if not values.get(key) or 'GENERATE_WITH_INIT_ENV' in values[key] or 'CHANGE_ME' in values[key]:
             raise ValueError(f'{key} must be configured')
-    if values['APP_ENV'] != environment or values['VITE_ENVIRONMENT'] != environment:
-        raise ValueError('APP_ENV and VITE_ENVIRONMENT must match the selected environment')
+    if values['APP_ENV'] != environment:
+        raise ValueError('APP_ENV must match the selected environment')
     ports = {key: int(values[key]) for key in required if key.endswith('_PORT')}
     if any(not 0 < port <= 65535 for port in ports.values()):
         raise ValueError('All ports must be valid nonzero TCP ports')
@@ -56,20 +56,23 @@ def validate(values, environment):
     if values['AUTH_INTERNAL_URL'] != f"http://auth:{ports['AUTH_PORT']}":
         raise ValueError('AUTH_INTERNAL_URL must match the internal auth service port')
     urls = {}
-    for name in ('VITE_SITE_URL', 'VITE_API_BASE_URL', 'VITE_AUTH_BASE_URL', 'BETTER_AUTH_URL'):
+    for name in ('SITE_URL', 'BETTER_AUTH_URL'):
         url = urlsplit(values[name])
         if url.scheme not in ('http', 'https') or not url.hostname or url.username or url.password or url.query or url.fragment:
             raise ValueError(f'{name} must be an HTTP(S) URL without credentials, query or fragment')
         urls[name] = url
-    origins = [origin.strip() for origin in values['CORS_ORIGINS'].split(',')]
-    if '*' in origins or values['VITE_SITE_URL'].rstrip('/') not in origins:
+    origin = values['SITE_URL'].rstrip('/')
+    if urls['SITE_URL'].path not in ('', '/'):
+        raise ValueError('SITE_URL must be an origin without a path')
+    origins = [item.strip() for item in values['CORS_ORIGINS'].split(',')]
+    if '*' in origins or origin not in origins:
         raise ValueError('CORS_ORIGINS must explicitly include the site origin, never *')
+    # The browser reaches auth through the gateway (nginx) or the Vite dev proxy, never directly.
+    if values['BETTER_AUTH_URL'] != origin:
+        raise ValueError('BETTER_AUTH_URL must be the SITE_URL origin')
     if environment == 'production':
-        origin = values['VITE_SITE_URL'].rstrip('/')
-        if urls['VITE_SITE_URL'].scheme != 'https' or urls['VITE_SITE_URL'].path not in ('', '/'):
-            raise ValueError('Production VITE_SITE_URL must be an HTTPS origin')
-        if (values['VITE_API_BASE_URL'] != origin + '/api'
-                or values['VITE_AUTH_BASE_URL'] != origin or values['BETTER_AUTH_URL'] != origin
-                or values['AUTH_COOKIE_DOMAIN'] != urls['VITE_SITE_URL'].hostname):
-            raise ValueError('Production public URLs and cookie domain must use the single gateway origin')
+        if urls['SITE_URL'].scheme != 'https':
+            raise ValueError('Production SITE_URL must be an HTTPS origin')
+        if values['AUTH_COOKIE_DOMAIN'] != urls['SITE_URL'].hostname:
+            raise ValueError('AUTH_COOKIE_DOMAIN must be the SITE_URL hostname')
     return values

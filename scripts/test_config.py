@@ -28,10 +28,11 @@ class EnvironmentTests(unittest.TestCase):
     def test_separate_credentials_and_owner_only_permissions(self):
         dev = read_env(self.root / '.env.development')
         prod = read_env(self.root / '.env.production')
+        ci = read_env(ROOT / '.env.example')
         for key in ('POSTGRES_PASSWORD', 'BETTER_AUTH_SECRET', 'AI_KEYS_ENCRYPTION_KEY'):
             self.assertNotEqual(dev[key], prod[key])
         self.assertEqual((self.root / '.env.production').stat().st_mode & 0o777, 0o600)
-        self.assertEqual(prod['VITE_APP_NAME'], read_env(ROOT / '.env.example')['VITE_APP_NAME'])
+        self.assertEqual(prod['SITE_URL'], ci['CI_SITE_URL'])
         validate(dev, 'development')
         validate(prod, 'production')
 
@@ -47,7 +48,8 @@ class EnvironmentTests(unittest.TestCase):
         for key, value in (
             ('APP_ENV', 'development'), ('AI_KEYS_ENCRYPTION_KEY', 'invalid'),
             ('DATABASE_URL', 'postgres://invalid'), ('CORS_ORIGINS', '*'),
-            ('VITE_API_BASE_URL', values['VITE_SITE_URL']), ('AUTH_INTERNAL_URL', values['VITE_SITE_URL']),
+            ('BETTER_AUTH_URL', 'https://other.invalid'), ('AUTH_INTERNAL_URL', values['SITE_URL']),
+            ('SITE_URL', values['SITE_URL'] + '/app'), ('AUTH_COOKIE_DOMAIN', 'other.invalid'),
             ('FRONTEND_PORT', '0'), ('BETTER_AUTH_SECRET', 'short'),
         ):
             with self.subTest(key=key), self.assertRaises(ValueError):
@@ -81,7 +83,8 @@ class EnvironmentTests(unittest.TestCase):
 
     def test_compose_has_all_required_runtime_and_build_variables(self):
         services = self.compose('production')['services']
-        self.assertEqual(set(services['frontend']['build']['args']), {key for key in read_env(ROOT / '.env.example') if key.startswith('VITE_')})
+        self.assertNotIn('args', services['frontend'].get('build', {}))
+        self.assertEqual(set(services['frontend']['environment']), {'FRONTEND_PORT', 'BACKEND_PORT', 'AUTH_PORT', 'SITE_URL', 'NGINX_ENVSUBST_FILTER'})
         self.assertIn('AUTH_COOKIE_DOMAIN', services['auth']['environment'])
         self.assertIn('AI_KEYS_ENCRYPTION_KEY', services['backend']['environment'])
         self.assertEqual(set(services['postgres']['environment']), {'POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_PORT'})

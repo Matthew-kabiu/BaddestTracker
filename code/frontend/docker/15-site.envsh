@@ -1,0 +1,15 @@
+#!/bin/sh
+# Sourced by nginx's entrypoint before envsubst. One image serves any domain: the public origin
+# arrives as SITE_URL at container start and is rendered into the built site here. The CSP hash
+# follows the rendered JSON-LD, so canonical, crawler files and CSP always agree.
+html=/usr/share/nginx/html
+origin="${SITE_URL%/}"
+case "$origin" in http://*|https://*) ;; *) echo 'SITE_URL must be an HTTP(S) origin' >&2; exit 1 ;; esac
+case "${origin#*://}" in ''|*[/?\#\&\|\\\'\"\ ]*) echo 'SITE_URL must be an origin with no path, query or fragment' >&2; exit 1 ;; esac
+sed -i "s|__SITE_URL__|$origin|g" "$html/index.html"
+printf 'User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: %s/sitemap.xml\n' "$origin" > "$html/robots.txt"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>%s/</loc></url></urlset>\n' "$origin" > "$html/sitemap.xml"
+json=$(sed -n 's/.*<script id="seo-structured-data" type="application\/ld+json">\([^<]*\)<\/script>.*/\1/p' "$html/index.html")
+test -n "$json" || { echo 'Missing SEO structured data' >&2; exit 1; }
+export SEO_CSP_HASH="$(printf '%s' "$json" | sha256sum | cut -c1-64 | xxd -r -p | base64)"
+test -n "$SEO_CSP_HASH" || exit 1

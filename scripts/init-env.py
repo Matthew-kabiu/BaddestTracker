@@ -24,11 +24,8 @@ def create(environment, site_url=None, host_port=None):
             raise ValueError('--frontend-host-port must be an unprivileged valid port')
         site_url = site_url.rstrip('/')
         values.update(
-            APP_ENV=environment, VITE_ENVIRONMENT=environment,
-            FRONTEND_HOST_PORT=str(host_port), CORS_ORIGINS=site_url,
-            VITE_SITE_URL=site_url, VITE_API_BASE_URL=f'{site_url}/api',
-            VITE_AUTH_BASE_URL=site_url, BETTER_AUTH_URL=site_url,
-            AUTH_COOKIE_DOMAIN=url.hostname,
+            APP_ENV=environment, FRONTEND_HOST_PORT=str(host_port), CORS_ORIGINS=site_url,
+            SITE_URL=site_url, BETTER_AUTH_URL=site_url, AUTH_COOKIE_DOMAIN=url.hostname,
         )
     values['POSTGRES_PASSWORD'] = secrets.token_hex(32)
     values['DATABASE_URL'] = (

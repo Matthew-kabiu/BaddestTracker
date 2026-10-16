@@ -87,19 +87,12 @@ services:
     build:
       context: ./code/frontend
       dockerfile: docker/Dockerfile.prod
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set in .env.production}
-        VITE_APP_NAME: ${VITE_APP_NAME:?set in .env.production}
-        VITE_ENVIRONMENT: ${VITE_ENVIRONMENT:?set in .env.production}
-        VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL:?set in .env.production}
-        VITE_SITE_URL: ${VITE_SITE_URL:?set in .env.production}
     environment:
       FRONTEND_PORT: ${FRONTEND_PORT:?set in .env.production}
       BACKEND_PORT: ${BACKEND_PORT:?set in .env.production}
       AUTH_PORT: ${AUTH_PORT:?set in .env.production}
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set in .env.production}
-      VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL:?set in .env.production}
-      NGINX_ENVSUBST_FILTER: '^(FRONTEND_PORT|BACKEND_PORT|AUTH_PORT|VITE_API_BASE_URL|VITE_AUTH_BASE_URL|SEO_CSP_HASH)$'
+      SITE_URL: ${SITE_URL:?set in .env.production}
+      NGINX_ENVSUBST_FILTER: '^(FRONTEND_PORT|BACKEND_PORT|AUTH_PORT|SEO_CSP_HASH)$'
     ports:
       - "${HOST_BIND_ADDRESS:?set in .env.production}:${FRONTEND_HOST_PORT:?set in .env.production}:${FRONTEND_PORT:?set in .env.production}"
     depends_on:

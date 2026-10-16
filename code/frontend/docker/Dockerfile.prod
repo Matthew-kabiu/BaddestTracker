@@ -1,31 +1,24 @@
-# Build the SPA, then serve it with nginx. VITE_* values are baked in at build time (public, never secrets).
+# Build the SPA once, then serve it with nginx. Nothing environment-specific is baked: the public
+# origin (SITE_URL) and service ports are rendered when the container starts.
 FROM node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable
-ARG VITE_API_BASE_URL
-ARG VITE_APP_NAME
-ARG VITE_ENVIRONMENT
-ARG VITE_AUTH_BASE_URL
-ARG VITE_SITE_URL
-ENV VITE_SITE_URL=${VITE_SITE_URL}
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} VITE_APP_NAME=${VITE_APP_NAME} VITE_ENVIRONMENT=${VITE_ENVIRONMENT} VITE_AUTH_BASE_URL=${VITE_AUTH_BASE_URL}
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod=false
 COPY . .
-RUN test -n "$VITE_API_BASE_URL" && test -n "$VITE_AUTH_BASE_URL" \
- && test -n "$VITE_APP_NAME" && test -n "$VITE_ENVIRONMENT" && test -n "$VITE_SITE_URL" \
- && pnpm build
+RUN pnpm build
 
 # Unprivileged build of the official image: nginx runs as uid 101, not root. It keeps the pid file
 # in /tmp and lets that user write conf.d, so the template step below still works.
 FROM nginxinc/nginx-unprivileged:alpine
 USER root
 RUN rm -rf /usr/share/nginx/html/*
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Owned by nginx so 15-site.envsh can render index.html, robots.txt and sitemap.xml at start.
+COPY --from=builder --chown=101:101 /app/dist /usr/share/nginx/html
 # nginx's entrypoint envsubsts templates/*.template into conf.d/ — listen port = ${FRONTEND_PORT}.
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Rendered to conf.d/security-headers.inc (not *.conf, so nginx does not load it as a server block).
 COPY docker/security-headers.conf.template /etc/nginx/templates/security-headers.inc.template
-COPY --chmod=755 docker/15-seo.envsh /docker-entrypoint.d/15-seo.envsh
+COPY --chmod=755 docker/15-site.envsh /docker-entrypoint.d/15-site.envsh
 USER 101
 CMD ["nginx", "-g", "daemon off;"]

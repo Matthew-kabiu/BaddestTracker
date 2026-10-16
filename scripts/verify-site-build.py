@@ -1,25 +1,16 @@
 #!/usr/bin/env python3
-"""Check built canonical/crawler metadata and CSP without a web server or Docker."""
-import base64
-import hashlib
+"""Check that the built site is environment-agnostic and its crawler metadata is well formed."""
 import json
 import re
-import sys
-import xml.etree.ElementTree as ET
-from env_config import ROOT, read_env
+from env_config import ROOT
 
-values = read_env(ROOT / f'.env.{sys.argv[1]}')
-origin = values['VITE_SITE_URL'].rstrip('/')
 dist = ROOT / 'code/frontend/dist'
 html = (dist / 'index.html').read_text()
-assert f'rel="canonical" href="{origin}/"' in html, 'Canonical does not match environment'
+assert 'rel="canonical" href="__SITE_URL__/"' in html, 'Canonical must stay a runtime placeholder'
+assert '%VITE_' not in html and 'VITE_' not in html, 'Unexpanded or baked Vite environment value'
 match = re.search(r'<script id="seo-structured-data" type="application/ld\+json">([^<]+)</script>', html)
 assert match, 'Missing structured data'
 json.loads(match[1])
-digest = base64.b64encode(hashlib.sha256(match[1].encode()).digest()).decode()
-assert (dist / 'seo-csp-hash.txt').read_text().strip() == digest, 'CSP hash mismatch'
-assert f'Sitemap: {origin}/sitemap.xml' in (dist / 'robots.txt').read_text(), 'Sitemap origin mismatch'
-tree = ET.fromstring((dist / 'sitemap.xml').read_text())
-assert tree.find('.//{*}loc').text == origin + '/', 'Sitemap URL mismatch'
-assert '%VITE_' not in html, 'Unexpanded environment placeholder'
-print('Built canonical, JSON-LD, robots, sitemap and CSP hash agree with the environment.')
+for name in ('robots.txt', 'sitemap.xml', 'seo-csp-hash.txt'):
+    assert not (dist / name).exists(), f'{name} is rendered at container start, not at build'
+print('Built site carries no environment; canonical, JSON-LD and crawler files render at start.')

@@ -45,7 +45,7 @@ sh scripts/compose.sh development config --quiet
 sh scripts/compose.sh development up --build
 ```
 
-The setup script creates `.env.development` with fresh credentials and owner-only file permissions. It will not overwrite an existing file. Check its port values for local conflicts, then open the address configured in `VITE_SITE_URL` and create an account.
+The setup script creates `.env.development` with fresh credentials and owner-only file permissions. It will not overwrite an existing file. Check its port values for local conflicts, then open the address configured in `SITE_URL` and create an account.
 
 To stop the stack while keeping your data:
 
@@ -68,7 +68,7 @@ All deployment ports, origins and credentials come from the selected environment
 
 | Variables | Purpose |
 | --- | --- |
-| `APP_ENV`, `VITE_ENVIRONMENT` | Environment identity; both must match the selected file |
+| `APP_ENV` | Environment identity; must match the selected file |
 | `LOG_LEVEL` | Rust logging filter |
 | `HOST_BIND_ADDRESS` | Host interface for published ports |
 | `FRONTEND_PORT`, `BACKEND_PORT`, `AUTH_PORT`, `POSTGRES_PORT` | Internal service ports |
@@ -77,16 +77,15 @@ All deployment ports, origins and credentials come from the selected environment
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Database identity and credential |
 | `DATABASE_URL`, `DB_MAX_CONNS` | Database connection URL and API connection-pool size |
 | `BETTER_AUTH_SECRET` | Auth signing secret |
-| `BETTER_AUTH_URL`, `VITE_AUTH_BASE_URL` | Browser-facing auth origin |
+| `BETTER_AUTH_URL` | Browser-facing auth origin, which is the site origin |
 | `AUTH_INTERNAL_URL` | API-to-auth address on the Compose network |
 | `AUTH_COOKIE_DOMAIN` | Production gateway hostname for session cookies |
 | `CORS_ORIGINS` | Explicit allowed browser origins |
 | `AI_KEYS_ENCRYPTION_KEY` | Base64-encoded random 32-byte key for provider keys and Telegram tokens |
-| `VITE_API_BASE_URL` | Public API URL, ending in `/api` |
-| `VITE_SITE_URL`, `VITE_APP_NAME` | Public site origin and application name |
+| `SITE_URL` | Public site origin, read by the frontend container at start |
 | `CI_SITE_URL`, `CI_FRONTEND_HOST_PORT` | Disposable test inputs from `.env.example` |
 
-`VITE_*` settings are public and embedded at build time. Rebuild the frontend when they change. Keep secrets in server-side variables, never in frontend build arguments. When changing an internal port, update its dependent connection URL in the same file.
+Nothing is embedded in the frontend at build time. The browser reaches the API and auth at `/api` on the site origin, and the frontend container renders `SITE_URL` into the page, crawler files and Content Security Policy when it starts. Restart the frontend service after changing it. When changing an internal port, update its dependent connection URL in the same file.
 
 ## Production setup
 
@@ -170,7 +169,7 @@ Protect database backups and the matching environment keys outside the repositor
 | API cannot identify the session | Check `AUTH_INTERNAL_URL`, auth readiness and cookie forwarding |
 | Database rejects changed credentials | Existing volumes retain their original database credentials; update them deliberately |
 | Newly added package cannot be resolved | Refresh the affected development image/dependency volume without deleting database data |
-| Frontend still uses an old domain | Rebuild with updated public build arguments |
+| Frontend still uses an old domain | Restart the frontend service so it renders the current `SITE_URL` |
 | Live updates arrive only after refresh | Check SSE buffering and timeouts through the ingress |
 
 ## Contributing

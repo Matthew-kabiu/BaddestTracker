@@ -1,6 +1,5 @@
-import { env } from '@/lib/config/env'
-
-const API = env.VITE_API_BASE_URL
+// Same origin everywhere: nginx proxies /api in production, Vite's dev server locally.
+const API = '/api'
 const API_V1 = `${API}/v1`
 
 /** Backend API routes — the only place backend URLs are written. */
