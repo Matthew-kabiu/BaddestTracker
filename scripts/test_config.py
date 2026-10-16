@@ -56,11 +56,11 @@ class EnvironmentTests(unittest.TestCase):
                 validate({**values, key: value}, 'production')
 
     def compose(self, environment):
-        short = 'prod' if environment == 'production' else 'dev'
+        file = 'docker-compose.yml' if environment == 'production' else 'docker-compose.dev.yml'
         env = {key: value for key, value in os.environ.items() if key not in read_env(ROOT / '.env.example')}
         result = subprocess.run([
             'docker', 'compose', '--project-directory', str(ROOT), '--env-file',
-            str(self.root / f'.env.{environment}'), '-f', str(ROOT / f'docker-compose.{short}.yml'),
+            str(self.root / f'.env.{environment}'), '-f', str(ROOT / file),
             'config', '--format', 'json',
         ], capture_output=True, text=True, env=env)
         self.assertEqual(result.returncode, 0, 'Compose configuration failed to validate')
@@ -81,9 +81,12 @@ class EnvironmentTests(unittest.TestCase):
                 self.assertFalse(set(source) & {'DATABASE_URL', 'POSTGRES_PASSWORD', 'BETTER_AUTH_SECRET', 'AI_KEYS_ENCRYPTION_KEY'})
         self.assertTrue(all(not service.get('volumes') for name, service in services.items() if name != 'postgres'))
 
-    def test_compose_has_all_required_runtime_and_build_variables(self):
+    def test_compose_pulls_released_images_with_required_runtime_variables(self):
         services = self.compose('production')['services']
-        self.assertNotIn('args', services['frontend'].get('build', {}))
+        # Released images only: a build key would make compose rebuild from source whenever an image is missing.
+        for name in ('frontend', 'backend', 'auth'):
+            self.assertNotIn('build', services[name])
+            self.assertTrue(services[name]['image'].startswith('ghcr.io/matthew-kabiu/baddesttracker-'))
         self.assertEqual(set(services['frontend']['environment']), {'FRONTEND_PORT', 'BACKEND_PORT', 'AUTH_PORT', 'SITE_URL', 'NGINX_ENVSUBST_FILTER'})
         self.assertIn('AUTH_COOKIE_DOMAIN', services['auth']['environment'])
         self.assertIn('AI_KEYS_ENCRYPTION_KEY', services['backend']['environment'])
@@ -94,7 +97,7 @@ class EnvironmentTests(unittest.TestCase):
         scripts.mkdir()
         for name in ('compose.sh', 'validate-env.py', 'env_config.py'):
             shutil.copy(ROOT / 'scripts' / name, scripts / name)
-        for name in ('docker-compose.dev.yml', 'docker-compose.prod.yml'):
+        for name in ('docker-compose.dev.yml', 'docker-compose.yml'):
             shutil.copy(ROOT / name, self.root / name)
         env = {**os.environ, **read_env(self.root / '.env.development')}
         result = subprocess.run(['sh', str(scripts / 'compose.sh'), 'production', 'config', '--format', 'json'],
@@ -112,7 +115,7 @@ class EnvironmentTests(unittest.TestCase):
             validate(values, 'production')
         env = {key: value for key, value in os.environ.items() if key not in read_env(ROOT / '.env.example')}
         result = subprocess.run(['docker', 'compose', '--env-file', '/dev/null', '-f',
-                                 str(ROOT / 'docker-compose.prod.yml'), 'config', '--quiet'],
+                                 str(ROOT / 'docker-compose.yml'), 'config', '--quiet'],
                                 capture_output=True, text=True, env=env)
         self.assertNotEqual(result.returncode, 0)
 

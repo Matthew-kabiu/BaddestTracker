@@ -31,13 +31,33 @@ Development uses Vite hot reload, `tsx watch` and `cargo-watch`, with separate h
 
 - Docker Engine and Docker Compose v2 or later, supporting `config --format json` and `up --wait`.
 - Python 3.10 or later for setup and validation scripts; no extra Python packages are needed.
-- For native checks/builds: Node.js 22, Corepack, pnpm as pinned in `package.json`, and Rust as pinned in `code/backend/rust-toolchain.toml`, with Clippy and rustfmt.
+- Running a release needs nothing else. For native checks/builds from source: Node.js 22, Corepack, pnpm as pinned in `package.json`, and Rust as pinned in `code/backend/rust-toolchain.toml`, with Clippy and rustfmt.
 - Native Rust builds need a C/C++ compiler, CMake, pkg-config and CA certificates. The production builder installs these prerequisites.
 - Production needs an HTTPS origin and a trusted TLS ingress.
 
-## Getting started
+## Run a release
 
-Run from the repository root:
+Every release publishes ready-built images for the web gateway, API and auth service to GitHub Container Registry. Running one needs Docker and Python only.
+
+Pick an HTTPS origin for the site and a free gateway host port, then from the repository root:
+
+```sh
+python3 scripts/init-env.py production \
+  --site-url "$PRODUCTION_SITE_URL" \
+  --frontend-host-port "$PRODUCTION_FRONTEND_HOST_PORT"
+sh scripts/compose.sh production up -d --wait
+```
+
+The setup script creates `.env.production` with fresh credentials and owner-only permissions; it will not overwrite an existing file. Compose pulls the `latest` images. To pin a version, set `BADDEST_VERSION=1.0.0` in `.env.production`. Route your HTTPS ingress to the gateway as described under [Production setup](#production-setup).
+
+To update:
+
+```sh
+sh scripts/compose.sh production pull
+sh scripts/compose.sh production up -d --wait
+```
+
+## Develop from source
 
 ```sh
 python3 scripts/init-env.py development
@@ -45,7 +65,7 @@ sh scripts/compose.sh development config --quiet
 sh scripts/compose.sh development up --build
 ```
 
-The setup script creates `.env.development` with fresh credentials and owner-only file permissions. It will not overwrite an existing file. Check its port values for local conflicts, then open the address configured in `SITE_URL` and create an account.
+The setup script creates `.env.development` with fresh credentials and owner-only file permissions. It will not overwrite an existing file. Check its port values for local conflicts, then open the address configured in `SITE_URL` and create an account. The Vite dev server proxies `/api` to the API and auth containers, so the browser uses one origin exactly as in production.
 
 To stop the stack while keeping your data:
 
@@ -57,8 +77,8 @@ sh scripts/compose.sh development down
 
 | Environment | Configuration | Compose file |
 | --- | --- | --- |
-| Development | `.env.development` | `docker-compose.dev.yml` |
-| Production | `.env.production` | `docker-compose.prod.yml` |
+| Development | `.env.development` | `docker-compose.dev.yml` (builds from source, hot reload) |
+| Production | `.env.production` | `docker-compose.yml` (pulls released images) |
 
 Use `.env.production` as the canonical production filename. Real environment files are ignored; `.env.example` contains only sample settings. The Compose wrapper selects and validates the matching file and prevents exported settings from overriding it.
 
@@ -83,18 +103,16 @@ All deployment ports, origins and credentials come from the selected environment
 | `CORS_ORIGINS` | Explicit allowed browser origins |
 | `AI_KEYS_ENCRYPTION_KEY` | Base64-encoded random 32-byte key for provider keys and Telegram tokens |
 | `SITE_URL` | Public site origin, read by the frontend container at start |
+| `BADDEST_VERSION` | Released image tag for `docker-compose.yml`; unset means `latest` |
 | `CI_SITE_URL`, `CI_FRONTEND_HOST_PORT` | Disposable test inputs from `.env.example` |
 
 Nothing is embedded in the frontend at build time. The browser reaches the API and auth at `/api` on the site origin, and the frontend container renders `SITE_URL` into the page, crawler files and Content Security Policy when it starts. Restart the frontend service after changing it. When changing an internal port, update its dependent connection URL in the same file.
 
 ## Production setup
 
-Choose an available gateway host port after checking host listeners and container mappings. Set your HTTPS origin and chosen port in shell variables, then generate the production file:
+Choose an available gateway host port after checking host listeners and container mappings, then generate the production file as shown under [Run a release](#run-a-release). To check it without starting anything:
 
 ```sh
-python3 scripts/init-env.py production \
-  --site-url "$PRODUCTION_SITE_URL" \
-  --frontend-host-port "$PRODUCTION_FRONTEND_HOST_PORT"
 python3 scripts/validate-env.py production
 sh scripts/compose.sh production config --quiet
 ```
@@ -106,9 +124,11 @@ Route the HTTPS ingress to `http://${HOST_BIND_ADDRESS}:${FRONTEND_HOST_PORT}` u
 Start the production stack when ready:
 
 ```sh
-sh scripts/compose.sh production up --build -d --wait
+sh scripts/compose.sh production up -d --wait
 sh scripts/compose.sh production ps
 ```
+
+The host never builds: it pulls the images a release published. `docker-compose.yml` has no `build` keys, so a missing image is a pull failure, not a silent rebuild from source.
 
 Health checks order startup: database, auth, API, then frontend. Database migrations apply automatically. Verify the HTTPS site, sign-in, a protected API request and live notifications through your ingress. `/health` checks nginx; `/api/health` checks the API and its database connection.
 
@@ -136,7 +156,7 @@ To include native production source builds and generated metadata verification:
 python3 scripts/check.py --environment production --build
 ```
 
-The same quality gates are defined in `.github/workflows/ci.yml`. Source builds compile Rust, auth and frontend artifacts; they do not build Docker images. Keep `Cargo.lock` and both `pnpm-lock.yaml` files available for reproducible dependency installation.
+The same quality gates are defined in `.github/workflows/ci.yml`. Source builds compile Rust, auth and frontend artifacts; they do not build Docker images. Images are built by the release workflow only. Keep `Cargo.lock` and both `pnpm-lock.yaml` files available for reproducible dependency installation.
 
 ## Data and security
 
@@ -171,6 +191,16 @@ Protect database backups and the matching environment keys outside the repositor
 | Newly added package cannot be resolved | Refresh the affected development image/dependency volume without deleting database data |
 | Frontend still uses an old domain | Restart the frontend service so it renders the current `SITE_URL` |
 | Live updates arrive only after refresh | Check SSE buffering and timeouts through the ingress |
+
+## Releasing (maintainers)
+
+A release is a git tag. Bump the version in `code/frontend/package.json`, `code/auth/package.json` and `code/backend/Cargo.toml` (with `Cargo.lock`) in a commit, push `main`, then:
+
+```sh
+git tag -a vX.Y.Z -m "Baddest Tracker X.Y.Z: <one line>" && git push origin vX.Y.Z
+```
+
+`.github/workflows/release.yml` builds the three production images once on `linux/amd64`, publishes them to `ghcr.io/matthew-kabiu/baddesttracker-{frontend,backend,auth}` as `X.Y.Z`, `X.Y` and `latest`, smoke-tests the frontend image with runtime configuration only, and creates the GitHub Release with generated notes. Nothing environment-specific is baked into an image.
 
 ## Contributing
 

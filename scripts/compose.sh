@@ -3,8 +3,8 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 case "${1-}" in
-  development) compose=dev ;;
-  production) compose=prod ;;
+  development) file=docker-compose.dev.yml ;;
+  production) file=docker-compose.yml ;;
   *) printf '%s\n' 'Usage: sh scripts/compose.sh development|production <compose arguments>' >&2; exit 2 ;;
 esac
 environment=$1
@@ -18,4 +18,4 @@ while IFS='=' read -r key rest; do
   case "$key" in *[!A-Z0-9_]*) printf '%s\n' 'Invalid environment key' >&2; exit 1 ;; esac
   unset "$key"
 done < "$env_file"
-exec docker compose --project-directory "$ROOT" --env-file "$env_file" -f "$ROOT/docker-compose.$compose.yml" "$@"
+exec docker compose --project-directory "$ROOT" --env-file "$env_file" -f "$ROOT/$file" "$@"

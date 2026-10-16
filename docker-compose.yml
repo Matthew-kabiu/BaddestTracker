@@ -1,6 +1,9 @@
-# Production: sh scripts/compose.sh production up --build -d --wait
-# .env.production is the sole source; missing variables abort startup.
-# Host Cloudflare Tunnel -> frontend gateway -> internal auth/backend; DB stays private.
+# Run a released Baddest Tracker — pulls published images, no toolchain, no build.
+#   python3 scripts/init-env.py production --site-url https://... --frontend-host-port <port>
+#   sh scripts/compose.sh production up -d --wait
+# Update: sh scripts/compose.sh production pull && sh scripts/compose.sh production up -d --wait
+# Pin a version with BADDEST_VERSION in .env.production (unset = latest).
+# Host HTTPS ingress -> frontend gateway -> internal auth/backend; DB stays private.
 name: baddest-tracker
 
 services:
@@ -27,9 +30,7 @@ services:
     restart: unless-stopped
 
   auth:
-    build:
-      context: ./code/auth
-      dockerfile: docker/Dockerfile.prod
+    image: ghcr.io/matthew-kabiu/baddesttracker-auth:${BADDEST_VERSION:-latest}
     environment:
       APP_ENV: ${APP_ENV:?set in .env.production}
       AUTH_PORT: ${AUTH_PORT:?set in .env.production}
@@ -54,9 +55,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./code/backend
-      dockerfile: docker/Dockerfile.prod
+    image: ghcr.io/matthew-kabiu/baddesttracker-backend:${BADDEST_VERSION:-latest}
     environment:
       APP_ENV: ${APP_ENV:?set in .env.production}
       LOG_LEVEL: ${LOG_LEVEL:?set in .env.production}
@@ -84,9 +83,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./code/frontend
-      dockerfile: docker/Dockerfile.prod
+    image: ghcr.io/matthew-kabiu/baddesttracker-frontend:${BADDEST_VERSION:-latest}
     environment:
       FRONTEND_PORT: ${FRONTEND_PORT:?set in .env.production}
       BACKEND_PORT: ${BACKEND_PORT:?set in .env.production}
