@@ -1,7 +1,7 @@
 {
   "name": "baddest-auth",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "auth migrate --config src/auth.ts -y && tsx watch src/index.ts",
