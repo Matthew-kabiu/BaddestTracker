@@ -12,8 +12,9 @@ RUN pnpm build
 # in /tmp and lets that user write conf.d, so the template step below still works.
 FROM nginxinc/nginx-unprivileged:alpine
 USER root
-RUN rm -rf /usr/share/nginx/html/*
-# Owned by nginx so 15-site.envsh can render index.html, robots.txt and sitemap.xml at start.
+# Directory and files owned by nginx: 15-site.envsh rewrites index.html in place (sed needs a
+# temp file in the directory) and writes robots.txt and sitemap.xml at start.
+RUN rm -rf /usr/share/nginx/html/* && chown 101:101 /usr/share/nginx/html
 COPY --from=builder --chown=101:101 /app/dist /usr/share/nginx/html
 # nginx's entrypoint envsubsts templates/*.template into conf.d/ — listen port = ${FRONTEND_PORT}.
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
